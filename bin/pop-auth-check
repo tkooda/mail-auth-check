@@ -1,0 +1,79 @@
+#!/usr/bin/python
+
+## tkooda : 2011-12-01 : simple command line util to check an POP3 login
+
+## USAGE:  pop-auth-check  MyUsername  MyPassword  hostname
+
+
+import os
+import sys
+import poplib
+from socket import error, timeout
+
+
+def pop_auth( username, password, hostname, port ):
+	try:
+		DEBUG = int( os.getenv( "DEBUG" ) ) # 2
+	except:
+		DEBUG = False
+	try:
+#		m = poplib.POP3( hostname, int( port ), timeout=10 ) # timeout is per-command
+		m = poplib.POP3( hostname, int( port ) )
+		if DEBUG:
+			m.set_debuglevel( DEBUG )
+		m.user( username )
+		m.pass_( password )
+		
+		if m.stat():
+			m.quit()
+			return True
+	
+	except poplib.error_proto:
+		print >> sys.stderr, "ERROR: pop3 login failed: '%s' '%s' '%s', '%s'" % ( username, password, hostname, port )
+		return False
+	
+	except IndexError:
+		print >> sys.stderr, "ERROR: invalid username: '%s'" % username
+		return False
+	
+	except error:
+		print >> sys.stderr, "ERROR: could not connect to host: '%s:%s'" % ( hostname, port )
+		return False
+	
+	except timeout:
+		print >> sys.stderr, "ERROR: connection timeout."
+		return False
+	
+	except:
+		import traceback
+		traceback.print_exc( file=sys.stderr )
+		return False
+	
+	return False
+
+
+
+if __name__ == '__main__':
+	if len(sys.argv) < 3 or len(sys.argv) > 5:
+		print >> sys.stderr, "usage: %s <username> <password> [hostname] [port]" % os.path.basename( sys.argv[0] )
+		sys.exit( 2 )
+	
+	username = sys.argv[1]
+	password = sys.argv[2]
+	
+	if  len(sys.argv) >= 4:
+		hostname = sys.argv[3]
+	else:
+		hostname = "pop." + sys.argv[1].split( "@", 1 )[1]
+	
+	if  len(sys.argv) == 5:
+		port = sys.argv[4]
+	else:
+		port = "110"
+	
+	if pop_auth( username, password, hostname, port ):
+		print "SUCCESS: '%s' '%s' '%s' '%s'" % ( username, password, hostname, port )
+		sys.exit( 0 )
+	
+	print "FAILED"
+	sys.exit( 1 )
