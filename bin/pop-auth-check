@@ -11,14 +11,19 @@ import poplib
 from socket import error, timeout
 
 
-def pop_auth( username, password, hostname, port ):
+def pop_auth( username, password, hostname, port = 110, ssl = False ):
 	try:
 		DEBUG = int( os.getenv( "DEBUG" ) ) # 2
 	except:
 		DEBUG = False
+	
 	try:
-#		m = poplib.POP3( hostname, int( port ), timeout=10 ) # timeout is per-command
-		m = poplib.POP3( hostname, int( port ) )
+		if ssl:
+#			m = poplib.POP3_SSL( hostname, int( port ), timeout=10 ) # timeout is per-command
+			m = poplib.POP3_SSL( hostname, int( port ) )
+		else:
+#			m = poplib.POP3( hostname, int( port ) )
+			m = poplib.POP3( hostname, int( port ), timeout=10 ) # timeout is per-command
 		if DEBUG:
 			m.set_debuglevel( DEBUG )
 		m.user( username )
@@ -72,7 +77,11 @@ if __name__ == '__main__':
 		port = "110"
 	
 	if pop_auth( username, password, hostname, port ):
-		print "SUCCESS: '%s' '%s' '%s' '%s'" % ( username, password, hostname, port )
+		print "SUCCESS: non-SSL: '%s' '%s' '%s' '%s'" % ( username, password, hostname, port )
+		sys.exit( 0 )
+	
+	if pop_auth( username, password, hostname, 995, ssl = True ): # try with SSL
+		print "SUCCESS: SSL: '%s' '%s' '%s' '%s'" % ( username, password, hostname, 995 )
 		sys.exit( 0 )
 	
 	print "FAILED"
