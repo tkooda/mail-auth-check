@@ -1,0 +1,94 @@
+#!/usr/bin/python
+
+## tkooda : 2011-12-01 : simple command line util to check an SMTP AUTH login
+
+## USAGE:  smtp-auth-check  MyUsername  MyPassword  hostname
+
+
+import os
+import sys
+import smtplib
+from socket import error, gaierror, timeout
+
+
+def smtp_auth( username, password, hostname, port ):
+        try:
+                DEBUG = int( os.getenv( "DEBUG" ) ) # 2
+        except:
+                DEBUG = False
+        
+        if int( port ) == 465:
+                from smtplib import SMTP_SSL as SMTP
+                print >> sys.stderr, "INFO: connecting using SSL"
+        else:
+                print >> sys.stderr, "INFO: connecting without SSL"
+                from smtplib import SMTP
+        
+	try:
+#		m = SMTP( hostname, int( port ), timeout=10 ) # timeout is per-command
+		m = SMTP( hostname, int( port ) )
+		if DEBUG:
+			m.set_debuglevel( DEBUG )
+#		m.ehlo_or_helo_if_needed()
+		m.ehlo()
+		m.login( username, password )
+		m.quit()
+		return True
+	
+	except gaierror:
+		print >> sys.stderr, "ERROR: invalid hostname: '%s'" % hostname
+		return False
+
+	except smtplib.SMTPConnectError:
+		print >> sys.stderr, "ERROR: invalid response from server when connecting: '%s:%s'" % ( hostname, port )
+		return False
+	
+	except smtplib.SMTPHeloError:
+		print >> sys.stderr, "ERROR: invalid HELO response from server: '%s:%s'" % ( hostname, port )
+		return False
+	
+	except smtplib.SMTPAuthenticationError:
+		print >> sys.stderr, "ERROR: invalid username or password: '%s' '%s'" % ( username, password )
+		return False
+	
+	except smtplib.SMTPException:
+		print >> sys.stderr, "ERROR: No suitable authentication method was found."
+		return False
+	
+	except timeout:
+		print >> sys.stderr, "ERROR: connection timeout."
+		return False
+	
+	except:
+		import traceback
+		traceback.print_exc( file=sys.stderr )
+		return False
+	
+	return False
+
+
+
+if __name__ == '__main__':
+	if len(sys.argv) < 3 or len(sys.argv) > 5:
+		print >> sys.stderr, "usage: %s <username> <password> [hostname] [port]" % os.path.basename( sys.argv[0] )
+		sys.exit( 2 )
+	
+	username = sys.argv[1]
+	password = sys.argv[2]
+	
+	if  len(sys.argv) >= 4:
+		hostname = sys.argv[3]
+	else:
+		hostname = "smtp." + sys.argv[1].split( "@", 1 )[1]
+	
+	if  len(sys.argv) == 5:
+		port = sys.argv[4]
+	else:
+		port = "25"
+	
+	if smtp_auth( username, password, hostname, port ):
+		print "SUCCESS: '%s' '%s' '%s' '%s'" % ( username, password, hostname, port )
+		sys.exit( 0 )
+	
+	print "FAILED"
+	sys.exit( 1 )
