@@ -1,0 +1,81 @@
+#!/usr/bin/python
+
+## tkooda : 2011-12-01 : simple command line util to list IMAPv4+SSL mailboxes
+
+## USAGE:  imaps-list-mailboxes  MyUsername  MyPassword  hostname
+
+
+import os
+import sys
+import imaplib
+from socket import error, gaierror, timeout
+
+
+def imap_auth( username, password, hostname, port ):
+        try:
+                DEBUG = int( os.getenv( "DEBUG" ) ) # 4
+        except:
+                DEBUG = False
+	try:
+		m = imaplib.IMAP4_SSL( hostname, int( port ) )
+		if DEBUG:
+			m.debug = DEBUG
+		m.login( username, password )
+		
+		response = m.list()
+		if response[ 0 ] == "OK":
+			for mailbox in response[ 1 ]:
+				print "m:", mailbox
+		
+		m.logout()
+		return True
+	
+	except gaierror:
+		print >> sys.stderr, "ERROR: invalid hostname: '%s'" % hostname
+		return False
+	
+	except timeout:
+		print >> sys.stderr, "ERROR: connection timeout."
+		return False
+	
+	except imaplib.IMAP4.abort:
+		print >> sys.stderr, "ERROR: IMAP4 server error."
+		return False
+	
+	except imaplib.IMAP4.error:
+		print >> sys.stderr, "ERROR: invalid username or password: '%s' '%s'" % ( username, password )
+		return False
+	
+	except:
+		import traceback
+		traceback.print_exc( file=sys.stderr )
+		return False
+	
+	return False
+
+
+
+if __name__ == '__main__':
+	if len(sys.argv) < 3 or len(sys.argv) > 5:
+		print >> sys.stderr, "usage: %s <username> <password> [hostname] [port]" % os.path.basename( sys.argv[0] )
+		sys.exit( 2 )
+	
+	username = sys.argv[1]
+	password = sys.argv[2]
+	
+	if  len(sys.argv) >= 4:
+		hostname = sys.argv[3]
+	else:
+		hostname = "imap." + sys.argv[1].split( "@", 1 )[1]
+	
+	if  len(sys.argv) == 5:
+		port = sys.argv[4]
+	else:
+		port = "993"
+	
+	if imap_auth( username, password, hostname, port ):
+		print "SUCCESS: '%s' '%s' '%s' '%s'" % ( username, password, hostname, port )
+		sys.exit( 0 )
+	
+	print "FAILED"
+	sys.exit( 1 )
